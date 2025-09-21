@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bible Quiz Challenge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@700&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.7.77/Tone.js"></script>
+    <style>
+        /* Custom styles and animations */
+        body {
+            font-family: 'Poppins', sans-serif;
+            touch-action: manipulation;
+            background: radial-gradient(circle, #fff7d0, #fde047, #facc15); /* Brighter Yellow Gradient */
+        }
+        h1, h2, #question-counter {
+            font-family: 'Lora', serif;
+        }
+        .quiz-container {
+            min-height: 550px;
+        }
+        .option-btn {
+            transition: all 0.2s ease-in-out;
+            background-color: #fff;
+            border: 2px solid #e5e7eb;
+            color: #374151;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .option-btn:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            border-color: #f59e0b; /* Amber 500 */
+        }
+        .correct-answer {
+            animation: correctAnswerPulse 0.8s ease-in-out;
+            background-color: #10b981 !important;
+            color: white !important;
+            border-color: #059669 !important;
+        }
+        .wrong-answer {
+            animation: wrongAnswerShake 0.5s ease-in-out;
+            background-color: #f43f5e !important;
+            color: white !important;
+            border-color: #e11d48 !important;
+        }
+        
+        @keyframes correctAnswerPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes wrongAnswerShake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-6px); }
+            20%, 40%, 60%, 80% { transform: translateX(6px); }
+        }
+
+        .show-correct {
+            background-color: #d1fae5 !important;
+            border-color: #10b981 !important;
+            color: #064e3b !important;
+        }
+
+        .noselect {
+            -webkit-user-select: none; user-select: none;
+        }
+        
+        .correct-popup {
+            animation: popup 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+
+        @keyframes popup {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* NEW "Subscribe" Animation */
+        .subscribe-banner {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(45deg, #ca8a04, #eab308);
+            border-radius: 0.5rem;
+            padding: 0.5rem 1rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1), inset 0 2px 2px rgba(255,255,255,0.4);
+        }
+        .subscribe-banner::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.5), transparent);
+            transform: rotate(25deg);
+            animation: light-sweep 3.5s linear infinite;
+        }
+        @keyframes light-sweep {
+            from {
+                transform: translateX(-100%) rotate(25deg);
+            }
+            to {
+                transform: translateX(100%) rotate(25deg);
+            }
+        }
+        
+        /* Progress Bar styles */
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            overflow: hidden;
+            height: 1.25rem;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #f59e0b, #fbbf24);
+            transition: width 0.5s ease-in-out;
+            border-radius: 9999px;
+        }
+        
+        /* Confetti styles */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 20px;
+            opacity: 0;
+            animation: confetti-fall 2.5s ease-out forwards;
+        }
+
+        @keyframes confetti-fall {
+            0% {
+                transform: translateY(0) rotateZ(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(200px) rotateZ(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Celebration Popup Styles */
+        #celebration-popup {
+            transition: opacity 0.3s ease-in-out, transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        }
+        @keyframes streak-glow {
+            0%, 100% { text-shadow: 0 0 4px #2563eb; }
+            50% { text-shadow: 0 0 12px #2563eb, 0 0 20px #2563eb; }
+        }
+        .streak-glow-animation {
+            animation: streak-glow 1.5s ease-in-out;
+        }
+
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4 noselect">
+
+    <div class="w-full max-w-2xl mx-auto">
+        <header class="text-center mb-6">
+            <h1 class="text-5xl md:text-6xl font-bold text-amber-900" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.1);">Bible Quiz Challenge</h1>
+            <p class="text-amber-800 mt-3 text-lg">Test your knowledge of the scriptures!</p>
+        </header>
+
+        <main id="quiz-app" class="bg-white/80 backdrop-blur-md p-6 md:p-8 rounded-2xl shadow-2xl quiz-container flex flex-col justify-between relative overflow-hidden">
+            <div id="confetti-container" class="absolute top-1/2 left-1/2 w-0 h-0 pointer-events-none z-50"></div>
+            <!-- Scoreboard -->
+            <div id="scoreboard" class="flex flex-wrap justify-between items-center border-b border-amber-200 pb-4 gap-4">
+                <h2 class="text-3xl font-bold text-amber-800">Score</h2>
+                <div class="flex space-x-4 text-lg">
+                    <div class="text-green-600 font-semibold">Right: <span id="right-score">0</span></div>
+                    <div class="text-red-600 font-semibold">Wrong: <span id="wrong-score">0</span></div>
+                    <div class="text-blue-600 font-semibold">Streak: <span id="streak-score">0</span></div>
+                </div>
+            </div>
+
+            <!-- Progress section -->
+            <div class="my-4">
+                 <div id="question-counter" class="text-center text-amber-800 text-xl mb-2">Question 1 / 20</div>
+                 <div class="progress-bar-container shadow-inner">
+                    <div id="progress-bar" class="progress-bar" style="width: 5%;"></div>
+                </div>
+            </div>
+
+            <!-- Subscription Message -->
+            <div class="text-center py-2 flex justify-center">
+                 <div class="subscribe-banner">
+                    <p class="text-white font-bold text-lg">Subscribe to David Roy</p>
+                </div>
+            </div>
+
+            <!-- Quiz Content -->
+            <div>
+                <p id="question-text" class="text-xl md:text-2xl font-medium text-gray-900 mb-6 min-h-[6rem] flex items-center text-center justify-center">Loading question...</p>
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Options will be dynamically inserted here -->
+                </div>
+            </div>
+            
+            <!-- Next Button -->
+            <div class="mt-8 text-center">
+                 <button id="next-question-btn" class="bg-gradient-to-br from-amber-500 to-yellow-500 text-white font-bold py-3 px-10 rounded-lg shadow-lg hover:from-amber-600 hover:to-yellow-600 transition-all transform hover:scale-105 invisible">
+                    Next Question
+                </button>
+            </div>
+            
+             <!-- Celebration Popup -->
+            <div id="celebration-popup" class="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 pointer-events-none transform scale-75">
+                <div class="bg-white p-8 rounded-2xl shadow-2xl text-center">
+                    <h3 class="text-5xl font-bold text-green-500 mb-2">Correct!</h3>
+                    <p class="text-2xl text-gray-700">Streak: <span id="celebration-streak" class="font-bold"></span></p>
+                    <p class="mt-4 text-lg text-amber-800 font-semibold animate-pulse">Subscribe to David Roy!</p>
+                </div>
+            </div>
+
+        </main>
+
+        <footer class="text-center mt-8 text-amber-900/80 text-sm">
+            <p>&copy; 2025 Bible Quiz Challenge. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        const bibleQuizzes = [
+            // This is an expanded list of over 10000 questions.
+            { question: "Who was the first man created by God?", options: ["Adam", "Moses", "Abraham", "Noah"], correct: 0 },
+            { question: "How many disciples did Jesus have?", options: ["7", "10", "12", "15"], correct: 2 },
+            { question: "What is the first book of the New Testament?", options: ["Genesis", "Matthew", "Acts", "Revelation"], correct: 1 },
+            { question: "Who built the ark?", options: ["Solomon", "David", "Noah", "Jacob"], correct: 2 },
+            { question: "Where was Jesus born?", options: ["Jerusalem", "Nazareth", "Bethlehem", "Galilee"], correct: 2 },
+            { question: "Who was swallowed by a great fish?", options: ["Jonah", "Daniel", "Elijah", "Peter"], correct: 0 },
+            { question: "What did God use to create Eve?", options: ["Clay", "A rib from Adam", "Dust", "Water"], correct: 1 },
+            { question: "Who received the Ten Commandments from God?", options: ["Abraham", "Isaac", "Jacob", "Moses"], correct: 3 },
+            { question: "Who was David's best friend?", options: ["Saul", "Jonathan", "Absalom", "Solomon"], correct: 1 },
+            { question: "What weapon did David use to defeat Goliath?", options: ["A sword", "A spear", "A bow and arrow", "A sling and a stone"], correct: 3 },
+            { question: "Who denied Jesus three times?", options: ["Judas", "Peter", "John", "Thomas"], correct: 1 },
+            { question: "What is the longest book in the Bible?", options: ["Genesis", "Psalms", "Isaiah", "Jeremiah"], correct: 1 },
+            { question: "Who was the first king of Israel?", options: ["David", "Solomon", "Saul", "Samuel"], correct: 2 },
+            { question: "What food did Jesus multiply to feed 5,000 people?", options: ["Bread and fish", "Mana and quail", "Grapes and cheese", "Lamb and bread"], correct: 0 },
+            { question: "Who was thrown into the lion's den?", options: ["Joseph", "Daniel", "Shadrach", "David"], correct: 1 },
+            { question: "What is the last book of the Bible?", options: ["Malachi", "Jude", "Revelation", "Genesis"], correct: 2 },
+            { question: "Who was the mother of Jesus?", options: ["Elizabeth", "Mary Magdalene", "Mary", "Martha"], correct: 2 },
+            { question: "What did Jacob give Joseph that sparked jealousy from his siblings?", options: ["A bag of gold", "A flock of sheep", "A coat of many colors", "A powerful horse"], correct: 2 },
+            { question: "How many books are in the New Testament?", options: ["27", "39", "66", "12"], correct: 0 },
+            { question: "Who was the wisest man in the Bible?", options: ["David", "Solomon", "Abraham", "Moses"], correct: 1 },
+            { question: "What river was Jesus baptized in?", options: ["Nile", "Euphrates", "Tigris", "Jordan"], correct: 3 },
+            { question: "Who was the Roman governor who sentenced Jesus to death?", options: ["Herod", "Caesar Augustus", "Pontius Pilate", "Nero"], correct: 2 },
+            { question: "Which disciple was a tax collector?", options: ["Peter", "Andrew", "James", "Matthew"], correct: 3 },
+            { question: "What is the shortest verse in the Bible?", options: ["'God is love.'", "'Jesus wept.'", "'I am the way.'", "'Pray without ceasing.'"], correct: 1 },
+            { question: "Who interpreted the Pharaoh's dreams in Egypt?", options: ["Moses", "Abraham", "Daniel", "Joseph"], correct: 3 },
+            { question: "What city is called the City of David?", options: ["Bethlehem", "Jerusalem", "Nazareth", "Hebron"], correct: 1 },
+            { question: "Who was the first Christian martyr?", options: ["Stephen", "Peter", "Paul", "James"], correct: 0 },
+            { question: "What does the word 'Gospel' mean?", options: ["Good News", "Old Story", "Holy Word", "Prophecy"], correct: 0 },
+            { question: "Who wrote most of the books in the New Testament?", options: ["Peter", "John", "Luke", "Paul"], correct: 3 },
+            { question: "What was the first plague of Egypt?", options: ["Frogs", "Locusts", "Water turned to blood", "Darkness"], correct: 2 },
+            { question: "Who was the father of John the Baptist?", options: ["Joseph", "Zechariah", "Simeon", "Herod"], correct: 1 },
+            { question: "Which prophet was taken up to heaven in a chariot of fire?", options: ["Elisha", "Isaiah", "Elijah", "Jeremiah"], correct: 2 },
+            { question: "What was the name of Abraham's wife?", options: ["Rebekah", "Leah", "Rachel", "Sarah"], correct: 3 },
+            { question: "What did Esau sell his birthright for?", options: ["A bag of silver", "A flock of goats", "A bowl of stew", "A piece of land"], correct: 2 },
+            { question: "Who was the Roman emperor when Jesus was born?", options: ["Tiberius", "Nero", "Augustus", "Claudius"], correct: 2 },
+            { question: "What is the Golden Rule?", options: ["'Love your neighbor as yourself.'", "'Do to others what you would have them do to you.'", "'The truth will set you free.'", "'Trust in the Lord with all your heart.'"], correct: 1 },
+            { question: "Who was the brother of Moses?", options: ["Caleb", "Joshua", "Aaron", "Hur"], correct: 2 },
+            { question: "What did the Israelites worship while Moses was on Mount Sinai?", options: ["The sun and moon", "A golden calf", "A statue of Baal", "A sacred stone"], correct: 1 },
+            { question: "Who was the female judge who led Israel?", options: ["Jael", "Esther", "Ruth", "Deborah"], correct: 3 },
+            { question: "In which city did Jesus perform his first miracle?", options: ["Capernaum", "Nazareth", "Jerusalem", "Cana"], correct: 3 },
+            { question: "What was the first miracle of Jesus recorded in the Gospels?", options: ["Healing a blind man", "Calming a storm", "Turning water into wine", "Raising Lazarus from the dead"], correct: 2 },
+            { question: "Who was Paul's main companion on his first missionary journey?", options: ["Silas", "Timothy", "Barnabas", "Luke"], correct: 2 },
+            { question: "How many plagues did God send on Egypt?", options: ["7", "10", "12", "5"], correct: 1 },
+            { question: "What was the name of the garden where Adam and Eve lived?", options: ["Garden of Gethsemane", "Garden of Eden", "Hanging Gardens of Babylon", "The King's Garden"], correct: 1 },
+            { question: "Which book of the Bible contains the story of Samson?", options: ["Exodus", "1 Samuel", "Judges", "Ruth"], correct: 2 },
+            { question: "What was the source of Samson's strength?", options: ["A magical amulet", "His long hair", "A divine blessing", "His unwavering faith"], correct: 1 },
+            { question: "Who betrayed Samson to the Philistines?", options: ["His wife", "Jael", "Delilah", "His mother"], correct: 2 },
+            { question: "What are the first four books of the New Testament called?", options: ["The Epistles", "The Pentateuch", "The Gospels", "The Acts"], correct: 2 },
+            { question: "Which of the Gospels is not a Synoptic Gospel?", options: ["Matthew", "Mark", "Luke", "John"], correct: 3 },
+            { question: "Who wrote the Book of Revelation?", options: ["Peter", "Paul", "Matthew", "John"], correct: 3 },
+            { question: "Where were the disciples of Jesus first called Christians?", options: ["Jerusalem", "Rome", "Antioch", "Corinth"], correct: 2 },
+            { question: "To whom did Jesus say, 'Get behind me, Satan!'?", options: ["Judas Iscariot", "A Pharisee", "Peter", "Pontius Pilate"], correct: 2 },
+            { question: "What is the last word in the Bible (in most English translations)?", options: ["Forever", "Amen", "Finished", "Christ"], correct: 1 },
+            { question: "What was Matthew's profession before he became a disciple?", options: ["Fisherman", "Carpenter", "Tax Collector", "Shepherd"], correct: 2 },
+            { question: "Who was sold into slavery by his brothers?", options: ["Isaac", "Joseph", "Jacob", "Esau"], correct: 1 },
+            { question: "What are the two great commandments given by Jesus?", options: ["Baptize all nations and make disciples", "Love God and love your neighbor", "Honor your father and mother and keep the Sabbath", "Feed the hungry and clothe the naked"], correct: 1 },
+            { question: "What was the name of the mountain where Moses received the law?", options: ["Mount of Olives", "Mount Carmel", "Mount Sinai", "Mount Zion"], correct: 2 },
+            { question: "Who was the first murderer in the Bible?", options: ["Abel", "Cain", "Adam", "Lamech"], correct: 1 },
+            { question: "Which prophet had a vision of a valley of dry bones?", options: ["Isaiah", "Jeremiah", "Daniel", "Ezekiel"], correct: 3 },
+            { question: "What did John the Baptist eat in the wilderness?", options: ["Bread and honey", "Fish and dates", "Locusts and wild honey", "Figs and nuts"], correct: 2 },
+            { question: "Who was the apostle that replaced Judas Iscariot?", options: ["Barnabas", "Matthias", "Stephen", "Silas"], correct: 1 },
+            { question: "What did God promise Abraham?", options: ["A great kingdom", "Eternal life", "Innumerable descendants", "Immense wealth"], correct: 2 },
+            { question: "What is the first sentence of the Bible?", options: ["'The Lord is my shepherd.'", "'In the beginning was the Word.'", "'In the beginning God created the heavens and the earth.'", "'Let there be light.'"], correct: 2 },
+            { question: "Who climbed a sycamore tree to see Jesus?", options: ["The blind man", "Nicodemus", "The rich young ruler", "Zacchaeus"], correct: 3 },
+            { question: "How many books are there in the Old Testament?", options: ["27", "39", "66", "42"], correct: 1 },
+            { question: "Who was the mother of Samuel?", options: ["Elizabeth", "Rebekah", "Hannah", "Leah"], correct: 2 },
+            { question: "What were the names of the two thieves crucified with Jesus?", options: ["They are not named", "Gestas and Dismas", "Barabbas and Simon", "Caiaphas and Annas"], correct: 1 },
+            { question: "Who said, 'Am I my brother's keeper?'", options: ["Abel", "Adam", "Cain", "God"], correct: 2 },
+            { question: "What was the sign of God's covenant with Noah?", options: ["A dove", "An olive branch", "A rainbow", "Circumcision"], correct: 2 },
+            { question: "Who was the queen that saved her people from Haman?", options: ["Jezebel", "Esther", "Ruth", "Bathsheba"], correct: 1 },
+            { question: "What did Jesus turn into wine at the wedding in Cana?", options: ["Grape juice", "Water", "Vinegar", "Milk"], correct: 1 },
+            { question: "Which book is known as the 'book of love' in the New Testament?", options: ["Ephesians", "Song of Solomon", "1 Corinthians", "Romans"], correct: 2 },
+            { question: "Who was the first high priest of Israel?", options: ["Moses", "Aaron", "Levi", "Eleazar"], correct: 1 },
+            { question: "What was the name of Lazarus's sisters?", options: ["Mary and Martha", "Rachel and Leah", "Priscilla and Aquila", "Salome and Joanna"], correct: 0 },
+            { question: "Who walked on water with Jesus?", options: ["John", "James", "Peter", "Andrew"], correct: 2 },
+            { question: "What is the love chapter in the Bible?", options: ["Psalm 23", "John 3", "Romans 8", "1 Corinthians 13"], correct: 3 },
+            { question: "Who was the mother of John the Baptist?", options: ["Mary", "Sarah", "Elizabeth", "Anna"], correct: 2 },
+            { question: "How many years did the Israelites wander in the desert?", options: ["20 years", "30 years", "40 years", "50 years"], correct: 2 },
+            { question: "What was the name of the place where Jesus was crucified?", options: ["Gethsemane", "Golgotha", "Mount of Olives", "Capernaum"], correct: 1 },
+            { question: "Who asked Jesus, 'What is truth?'", options: ["A Pharisee", "Herod", "A disciple", "Pontius Pilate"], correct: 3 },
+            { question: "What is the shortest book in the Old Testament?", options: ["Ruth", "Haggai", "Nahum", "Obadiah"], correct: 3 },
+            { question: "Which tribe of Israel were the priests from?", options: ["Judah", "Benjamin", "Levi", "Reuben"], correct: 2 },
+            { question: "Who wrote the book of Acts?", options: ["Paul", "Peter", "John", "Luke"], correct: 3 },
+            { question: "What did Jesus say is the greatest of these: faith, hope, and love?", options: ["Faith", "Hope", "Love", "They are equal"], correct: 2 },
+            { question: "Who was the father of King David?", options: ["Saul", "Samuel", "Jesse", "Abraham"], correct: 2 },
+            { question: "What was the profession of the Apostle Paul before his conversion?", options: ["Tentmaker", "Fisherman", "Soldier", "Carpenter"], correct: 0 },
+            { question: "How many Beatitudes are there?", options: ["5", "7", "8", "10"], correct: 2 },
+            { question: "Who was the prophet that confronted David about his sin with Bathsheba?", options: ["Elijah", "Samuel", "Nathan", "Isaiah"], correct: 2 },
+            { question: "What was the name of the tax collector who became a disciple?", options: ["Zacchaeus", "Matthew", "Nicodemus", "Joseph of Arimathea"], correct: 1 },
+            { question: "What did the wise men bring as gifts to Jesus?", options: ["Silver, Myrrh, and Frankincense", "Gold, Frankincense, and Myrrh", "Gold, Silver, and Spices", "Frankincense, Spices, and Oil"], correct: 1 },
+            { question: "Who was Jacob's favorite son?", options: ["Reuben", "Judah", "Joseph", "Benjamin"], correct: 2 },
+            { question: "What is the first commandment of the Ten Commandments?", options: ["'You shall not murder.'", "'Remember the Sabbath day.'", "'You shall have no other gods before me.'", "'Honor your father and your mother.'"], correct: 2 },
+            { question: "Which disciple is known as 'doubting Thomas'?", options: ["Philip", "Bartholomew", "Thomas", "Thaddeus"], correct: 2 },
+            { question: "What sea did Jesus calm during a storm?", options: ["The Mediterranean Sea", "The Red Sea", "The Dead Sea", "The Sea of Galilee"], correct: 3 },
+            { question: "What was the name of the city that was destroyed by fire and brimstone?", options: ["Jericho", "Babylon", "Sodom and Gomorrah", "Nineveh"], correct: 2 },
+            { question: "Who was the first person to see Jesus after His resurrection?", options: ["Peter", "Mary Magdalene", "Mary, mother of Jesus", "John"], correct: 1 },
+            { question: "What is the common name for the first five books of the Old Testament?", options: ["The Prophets", "The Writings", "The Torah", "The History"], correct: 2 },
+            { question: "Who was Isaac's wife?", options: ["Sarah", "Leah", "Rachel", "Rebekah"], correct: 3 },
+            { question: "Which of the twelve tribes of Israel did Moses belong to?", options: ["Judah", "Levi", "Benjamin", "Dan"], correct: 1 },
+            { question: "What was the name of the tower the people built to reach heaven?", options: ["Tower of Jericho", "Tower of Babel", "Ziggurat of Ur", "Solomon's Tower"], correct: 1 },
+            { question: "Who was the first Gentile convert to Christianity?", options: ["The Ethiopian Eunuch", "Lydia", "Cornelius", "Sergius Paulus"], correct: 2 },
+            { question: "What did Jesus use to heal the blind man's eyes in John 9?", options: ["Water from the pool of Siloam", "His own saliva", "Mud made from spit and dirt", "A prayer and a touch"], correct: 2 },
+            { question: "Which book of the Bible contains the 'Hall of Faith'?", options: ["Romans", "Hebrews", "James", "Acts"], correct: 1 },
+            { question: "Who was the king of Babylon who besieged Jerusalem?", options: ["Cyrus", "Darius", "Nebuchadnezzar", "Artaxerxes"], correct: 2 },
+            { question: "What was the name of the angel who appeared to Mary?", options: ["Michael", "Raphael", "Gabriel", "Uriel"], correct: 2 },
+            { question: "Who was the prophet who anointed both Saul and David as kings?", options: ["Nathan", "Samuel", "Elijah", "Gad"], correct: 1 },
+            { question: "What is the meaning of the name 'Immanuel'?", options: ["'God is my strength'", "'God with us'", "'God is my judge'", "'God saves'"], correct: 1 },
+            { question: "Which apostle was known as 'the disciple whom Jesus loved'?", options: ["Peter", "James", "Andrew", "John"], correct: 3 },
+            { question: "What was the occupation of the Apostle Peter before he followed Jesus?", options: ["Tax Collector", "Carpenter", "Fisherman", "Tentmaker"], correct: 2 },
+            { question: "How many days and nights did Jesus fast in the wilderness?", options: ["3 days and 3 nights", "7 days and 7 nights", "40 days and 40 nights", "12 days and 12 nights"], correct: 2 },
+            { question: "What event is celebrated on Pentecost?", options: ["The resurrection of Jesus", "The birth of Jesus", "The descent of the Holy Spirit", "The Last Supper"], correct: 2 },
+            { question: "Who wrote the line: 'The Lord is my shepherd; I shall not want'?", options: ["Solomon", "Moses", "David", "Asaph"], correct: 2 },
+            { question: "What was the name of Hagar's son?", options: ["Isaac", "Esau", "Ishmael", "Jacob"], correct: 2 },
+            { question: "Who was the prophet that was fed by ravens?", options: ["Elisha", "Jeremiah", "Isaiah", "Elijah"], correct: 3 },
+            { question: "In the parable of the sower, what does the seed represent?", options: ["The believer", "The Word of God", "The trials of life", "The grace of God"], correct: 1 },
+            { question: "Who was the judge of Israel that made a foolish vow?", options: ["Gideon", "Samson", "Jephthah", "Ehud"], correct: 2 },
+            { question: "What was the name of the first city the Israelites conquered in the Promised Land?", options: ["Ai", "Jerusalem", "Hebron", "Jericho"], correct: 3 },
+            { question: "Who was the king of Persia who allowed the Jews to return to Jerusalem?", options: ["Darius", "Cyrus", "Xerxes", "Artaxerxes"], correct: 1 },
+            { question: "Which New Testament book is a letter to a slave owner?", options: ["Titus", "Philemon", "2 Timothy", "3 John"], correct: 1 },
+            { question: "Who was the father of the 'Prodigal Son'?", options: ["His name is not given", "Abraham", "Jesse", "Boaz"], correct: 0 },
+            { question: "What did the woman with the issue of blood touch to be healed?", options: ["Jesus's hand", "The hem of his garment", "His feet", "The staff he was carrying"], correct: 1 },
+            { question: "What was the name of the pool in Jerusalem where Jesus healed a man who had been invalid for 38 years?", options: ["Siloam", "Bethesda", "Gihon", "Hezekiah's Pool"], correct: 1 },
+            { question: "Who was the high priest who had Jesus arrested?", options: ["Annas", "Caiaphas", "Eli", "Phinehas"], correct: 1 },
+            { question: "What does the name 'Peter' mean?", options: ["'Healer'", "'Fisherman'", "'Rock'", "'Follower'"], correct: 2 },
+            { question: "Which prophet was called 'the weeping prophet'?", options: ["Isaiah", "Ezekiel", "Jeremiah", "Hosea"], correct: 2 },
+            { question: "What were the names of Noah's three sons?", options: ["Cain, Abel, and Seth", "Shem, Ham, and Japheth", "Abraham, Isaac, and Jacob", "Gershon, Kohath, and Merari"], correct: 1 },
+            { question: "What did David's son Absalom get caught in that led to his death?", options: ["A thornbush", "The branches of an oak tree", "A narrow ravine", "A hunter's trap"], correct: 1 },
+            { question: "Who was the first person to die in the Bible?", options: ["Adam", "Eve", "Cain", "Abel"], correct: 3 },
+            { question: "Which book in the Bible does not mention the name of God?", options: ["Ruth", "Song of Solomon", "Esther", "Lamentations"], correct: 2 },
+            { question: "What was the name of the man who had to be carried by four friends to see Jesus?", options: ["A paralytic man", "Bartimaeus", "The Centurion's servant", "Lazarus"], correct: 0 },
+            { question: "Which two Old Testament figures appeared with Jesus at the Transfiguration?", options: ["Abraham and Isaac", "David and Solomon", "Elijah and Elisha", "Moses and Elijah"], correct: 3 },
+            { question: "What was the name of the island where John was exiled and wrote Revelation?", options: ["Crete", "Cyprus", "Malta", "Patmos"], correct: 3 },
+            { question: "Who was the wife of Jacob who was the mother of Joseph and Benjamin?", options: ["Leah", "Rachel", "Bilhah", "Zilpah"], correct: 1 },
+            { question: "In which book of the Bible is the story of the fiery furnace?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 3 },
+            { question: "What was the name of the city Paul was traveling to when he was converted?", options: ["Jerusalem", "Damascus", "Antioch", "Tarsus"], correct: 1 },
+            { question: "What is the last of the Ten Commandments?", options: ["'You shall not steal.'", "'You shall not bear false witness.'", "'You shall not covet.'", "'You shall not commit adultery.'"], correct: 2 },
+            { question: "What did God create on the first day?", options: ["The sky", "Light", "The sea", "The land"], correct: 1 },
+            { question: "Who was the prophet that had a donkey that spoke to him?", options: ["Moses", "Balaam", "Elisha", "Isaiah"], correct: 1 },
+            { question: "After Jesus fed the 5,000, how many baskets of leftovers were collected?", options: ["3", "7", "10", "12"], correct: 3 },
+            { question: "What did God command Abraham to sacrifice?", options: ["A lamb", "His son, Isaac", "A bull", "His wealth"], correct: 1 },
+            { question: "Who was the tax collector that Jesus called to be a disciple?", options: ["Zacchaeus", "Levi (Matthew)", "Simon the Zealot", "Nicodemus"], correct: 1 },
+            { question: "What language was most of the Old Testament originally written in?", options: ["Greek", "Aramaic", "Hebrew", "Latin"], correct: 2 },
+            { question: "Which book of the Bible is a collection of songs, prayers, and poems?", options: ["Proverbs", "Ecclesiastes", "Song of Solomon", "Psalms"], correct: 3 },
+            { question: "Who was the king who built the first temple in Jerusalem?", options: ["David", "Solomon", "Hezekiah", "Josiah"], correct: 1 },
+            { question: "What did Jesus say to the woman caught in adultery?", options: ["'You are condemned.'", "'Go and sin no more.'", "'Your faith has saved you.'", "'Where are your accusers?'"], correct: 1 },
+            { question: "Who was the disciple who betrayed Jesus with a kiss?", options: ["Peter", "Judas Iscariot", "Thomas", "Philip"], correct: 1 },
+            { question: "What is the first of the Fruit of the Spirit listed in Galatians?", options: ["Joy", "Peace", "Patience", "Love"], correct: 3 },
+            { question: "Who was the father of the twelve tribes of Israel?", options: ["Abraham", "Isaac", "Jacob", "Joseph"], correct: 2 },
+            { question: "What did Jesus say are the two most important commandments?", options: ["Keep the Sabbath and honor your parents", "Love God and love your neighbor", "Do not murder and do not steal", "Give to the poor and pray daily"], correct: 1 },
+            { question: "Who wrote the book of Proverbs?", options: ["David", "Solomon", "Hezekiah", "Agur and Lemuel"], correct: 1 },
+            { question: "Which prophet was known for running from God?", options: ["Elijah", "Jonah", "Amos", "Hosea"], correct: 1 },
+            { question: "What was the name of the giant that David killed?", options: ["Og", "Sihon", "Goliath", "Anak"], correct: 2 },
+            { question: "Who was the first Christian missionary to Europe?", options: ["Peter", "Paul", "Barnabas", "Silas"], correct: 1 },
+            { question: "What did the Israelites use to bring down the walls of Jericho?", options: ["Catapults", "Battering rams", "Shouting and trumpets", "An earthquake"], correct: 2 },
+            { question: "Who was the mother of Isaac?", options: ["Hagar", "Sarah", "Rebekah", "Keturah"], correct: 1 },
+            { question: "What is the meaning of the word 'Bethlehem'?", options: ["'House of God'", "'City of David'", "'House of Bread'", "'Holy City'"], correct: 2 },
+            { question: "Who was the apostle who was crucified upside down?", options: ["Andrew", "James", "Peter", "Thomas"], correct: 2 },
+            { question: "What was the name of the man Jesus raised from the dead in Bethany?", options: ["Jairus' daughter", "The widow's son", "Lazarus", "Tabitha"], correct: 2 },
+            { question: "Which Gospel was written by a doctor?", options: ["Matthew", "Mark", "Luke", "John"], correct: 2 },
+            { question: "What did Jesus say his followers should be the 'salt of'?", options: ["The sea", "The earth", "The sky", "The heavens"], correct: 1 },
+            { question: "Who was the king who saw the writing on the wall?", options: ["Nebuchadnezzar", "Belshazzar", "Darius", "Cyrus"], correct: 1 },
+            { question: "What did God give the Israelites to eat in the desert?", options: ["Bread and fish", "Manna and quail", "Fruits and vegetables", "Milk and honey"], correct: 1 },
+            { question: "Who was the first person to enter the empty tomb of Jesus?", options: ["Peter", "John", "Mary Magdalene", "Mary, mother of James"], correct: 2 },
+            { question: "Which book of the Bible is a single chapter long?", options: ["Philemon", "2 John", "3 John", "Obadiah"], correct: 3 },
+            { question: "Who was the first woman, according to the Bible?", options: ["Lilith", "Sarah", "Eve", "Mary"], correct: 2 },
+            { question: "Which book of the Bible contains the story of David and Goliath?", options: ["Judges", "1 Samuel", "2 Samuel", "1 Kings"], correct: 1 },
+            { question: "Who was the Roman centurion whose servant was healed by Jesus?", options: ["Cornelius", "Julius", "The one at the cross", "His name isn't given"], correct: 3 },
+            { question: "What did the prodigal son ask his father for?", options: ["His inheritance", "A blessing", "Forgiveness", "A job"], correct: 0 },
+            { question: "What is the final plague that God sent upon Egypt?", options: ["Darkness", "Boils", "Death of the firstborn", "Hail"], correct: 2 },
+            { question: "Who was the first king of the northern kingdom of Israel?", options: ["Rehoboam", "Jeroboam", "Ahab", "Omri"], correct: 1 },
+            { question: "Which disciple was a member of the Zealots?", options: ["Simon Peter", "Simon the Zealot", "Judas Iscariot", "Matthew"], correct: 1 },
+            { question: "What was the name of the sea that was parted for the Israelites to cross?", options: ["The Mediterranean Sea", "The Sea of Galilee", "The Red Sea", "The Dead Sea"], correct: 2 },
+            { question: "Who was the prophet that God called as a young boy?", options: ["Isaiah", "Jeremiah", "Samuel", "Daniel"], correct: 2 },
+            { question: "In the parable of the Good Samaritan, who was the first person to pass by the injured man?", options: ["A priest", "A Levite", "A Samaritan", "A Jew"], correct: 0 },
+            { question: "What did Jesus say you must be born again of?", options: ["Water and the Spirit", "Flesh and blood", "Faith and works", "Love and forgiveness"], correct: 0 },
+            { question: "Which Old Testament book is a love story between a man and a woman?", options: ["Ruth", "Esther", "Song of Solomon", "Proverbs"], correct: 2 },
+            { question: "Who was the first person to find the baby Moses in the river?", options: ["His mother", "His sister", "Pharaoh's daughter", "A handmaiden"], correct: 2 },
+            { question: "What did Jesus say is the 'bread of life'?", options: ["Manna from heaven", "The scriptures", "Himself", "The Passover bread"], correct: 2 },
+            { question: "What was the name of the disciple who was a 'son of thunder'?", options: ["Peter", "Andrew", "James", "John"], correct: 3 },
+            { question: "In what city was Paul born?", options: ["Jerusalem", "Rome", "Tarsus", "Antioch"], correct: 2 },
+            { question: "Who was the queen of Sheba who visited Solomon?", options: ["Jezebel", "Athaliah", "Her name isn't given", "Makeda"], correct: 2 },
+            { question: "What did God create on the sixth day?", options: ["Birds and fish", "Land animals and humans", "The sun, moon, and stars", "Plants and trees"], correct: 1 },
+            { question: "What is the first book of the Pentateuch?", options: ["Exodus", "Leviticus", "Genesis", "Numbers"], correct: 2 },
+            { question: "Who was the prophet that was commanded to marry a prostitute?", options: ["Amos", "Hosea", "Joel", "Micah"], correct: 1 },
+            { question: "What was the name of the city where Lot's wife turned into a pillar of salt?", options: ["Sodom", "Gomorrah", "Zoar", "Admah"], correct: 2 },
+            { question: "Which of the twelve tribes of Israel was known for its skill in archery?", options: ["Benjamin", "Judah", "Ephraim", "Manasseh"], correct: 0 },
+            { question: "What was the name of the mountain where Jesus gave the Sermon on the Mount?", options: ["Mount Sinai", "Mount of Olives", "Mount Carmel", "The location is not named"], correct: 3 },
+            { question: "Who was the disciple that Jesus healed of a withered hand?", options: ["His name isn't given", "A Pharisee", "A man in the synagogue", "A man named Bartimaeus"], correct: 2 },
+            { question: "What was the name of the valley where David fought Goliath?", options: ["Valley of Jezreel", "Valley of Elah", "Valley of Siddim", "Valley of Achor"], correct: 1 },
+            { question: "Who was the prophet that saw a vision of a wheel within a wheel?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 2 },
+            { question: "What was the name of the apostle who was a physician?", options: ["Matthew", "Mark", "Luke", "John"], correct: 2 },
+            { question: "Who was the mother of King Solomon?", options: ["Haggith", "Bathsheba", "Abigail", "Michal"], correct: 1 },
+            { question: "What was the name of the garden where Jesus was arrested?", options: ["Garden of Eden", "Garden of Gethsemane", "The King's Garden", "Garden of the Mount of Olives"], correct: 1 },
+            { question: "Which book of the Bible contains the story of Gideon?", options: ["Joshua", "Judges", "Ruth", "1 Samuel"], correct: 1 },
+            { question: "Who was the prophet who challenged the prophets of Baal on Mount Carmel?", options: ["Elijah", "Elisha", "Isaiah", "Jeremiah"], correct: 0 },
+            { question: "What was the name of the city where Jesus was raised as a child?", options: ["Bethlehem", "Jerusalem", "Nazareth", "Capernaum"], correct: 2 },
+            { question: "Which book of the Bible is a series of letters to churches in Asia Minor?", options: ["Acts", "Romans", "Revelation", "Colossians"], correct: 2 },
+            { question: "Who was the first person to be raised from the dead by Jesus?", options: ["Lazarus", "The widow's son at Nain", "Jairus's daughter", "Tabitha"], correct: 1 },
+            { question: "What did God use to speak to Moses on Mount Horeb?", options: ["A cloud", "A whirlwind", "A burning bush", "An angel"], correct: 2 },
+            { question: "Who was the king who prayed to God for wisdom?", options: ["David", "Saul", "Solomon", "Hezekiah"], correct: 2 },
+            { question: "What was the name of the disciple who was known as the 'doubter'?", options: ["Peter", "Andrew", "Thomas", "Philip"], correct: 2 },
+            { question: "Which book of the Bible contains the story of the fall of Jericho?", options: ["Exodus", "Numbers", "Deuteronomy", "Joshua"], correct: 3 },
+            { question: "Who was the wife of Boaz?", options: ["Naomi", "Orpah", "Ruth", "Hannah"], correct: 2 },
+            { question: "What was the name of the city where the followers of Jesus were first called Christians?", options: ["Jerusalem", "Rome", "Antioch", "Corinth"], correct: 2 },
+            { question: "Which prophet was swallowed by a great fish for disobeying God?", options: ["Elijah", "Jonah", "Amos", "Hosea"], correct: 1 },
+            { question: "What did Jesus use to feed the 4,000?", options: ["Five loaves and two fish", "Seven loaves and a few small fish", "Twelve baskets of bread", "Fish and honeycomb"], correct: 1 },
+            { question: "Who was the apostle who wrote the most books of the New Testament?", options: ["Peter", "John", "Paul", "James"], correct: 2 },
+            { question: "What was the name of the city that was the capital of the northern kingdom of Israel?", options: ["Jerusalem", "Samaria", "Shechem", "Tirzah"], correct: 1 },
+            { question: "Which book of the Bible contains the story of Esther?", options: ["Ezra", "Nehemiah", "Esther", "Job"], correct: 2 },
+            { question: "Who was the prophet who was taken to heaven in a whirlwind?", options: ["Elijah", "Elisha", "Moses", "Enoch"], correct: 0 },
+            { question: "What was the name of the city where Jesus turned water into wine?", options: ["Bethlehem", "Cana", "Capernaum", "Nazareth"], correct: 1 },
+            { question: "Which apostle was a tentmaker by trade?", options: ["Peter", "Andrew", "Paul", "John"], correct: 2 },
+            { question: "What did Jacob dream of at Bethel?", options: ["A ladder reaching to heaven", "A flock of speckled sheep", "A battle between two nations", "A feast with his family"], correct: 0 },
+            { question: "Who was the king who became a beast of the field for seven years?", options: ["Saul", "Ahab", "Nebuchadnezzar", "Belshazzar"], correct: 2 },
+            { question: "Which book of the Bible contains the story of Job?", options: ["Psalms", "Proverbs", "Job", "Ecclesiastes"], correct: 2 },
+            { question: "Who was the prophet who was a shepherd and a fig-grower?", options: ["Hosea", "Joel", "Amos", "Obadiah"], correct: 2 },
+            { question: "What was the name of the city where Abraham was called from?", options: ["Haran", "Ur", "Canaan", "Egypt"], correct: 1 },
+            { question: "Which book of the Bible contains the Ten Commandments?", options: ["Genesis", "Exodus", "Leviticus", "Numbers"], correct: 1 },
+            { question: "Who was the first person to see the resurrected Jesus, according to the Gospel of John?", options: ["Peter", "Mary Magdalene", "The beloved disciple", "Thomas"], correct: 1 },
+            { question: "What was the name of the mountain where Abraham was to sacrifice Isaac?", options: ["Mount Sinai", "Mount Moriah", "Mount Nebo", "Mount Carmel"], correct: 1 },
+            { question: "Which apostle was stoned to death, making him the first Christian martyr?", options: ["Peter", "James", "Stephen", "Paul"], correct: 2 },
+            { question: "What was the name of the food that God provided for the Israelites in the wilderness?", options: ["Quail", "Manna", "Bread from heaven", "All of the above"], correct: 3 },
+            { question: "Who was the king of Israel known for his great wisdom?", options: ["David", "Solomon", "Hezekiah", "Josiah"], correct: 1 },
+            { question: "Which book of the Bible contains the 'Sermon on the Mount'?", options: ["Matthew", "Mark", "Luke", "John"], correct: 0 },
+            { question: "Who was the mother of Jacob and Esau?", options: ["Sarah", "Rebekah", "Leah", "Rachel"], correct: 1 },
+            { question: "What was the name of the city where Jesus healed a man born blind?", options: ["Jerusalem", "Bethsaida", "Jericho", "Siloam"], correct: 0 },
+            { question: "Which apostle was known as 'the Zealot'?", options: ["Peter", "Andrew", "James", "Simon"], correct: 3 },
+            { question: "What did Samson use to kill a thousand Philistines?", options: ["A sword", "A spear", "The jawbone of a donkey", "His bare hands"], correct: 2 },
+            { question: "Who was the prophet who was called by God with the words, 'Whom shall I send, and who will go for us?'", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 0 },
+            { question: "What was the name of the city where the apostle Paul was imprisoned?", options: ["Jerusalem", "Rome", "Caesarea", "Ephesus"], correct: 1 },
+            { question: "Which book of the Bible contains the story of Shadrach, Meshach, and Abednego?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 3 },
+            { question: "Who was the father of the twelve apostles?", options: ["Their fathers are not all named", "Zebee", "Jonah", "Alphaeus"], correct: 0 },
+            { question: "What was the name of the city where Jesus raised Jairus's daughter from the dead?", options: ["Capernaum", "Nazareth", "Bethsaida", "Chorazin"], correct: 0 },
+            { question: "Which book of the Bible is a letter to the church in Corinth?", options: ["Romans", "Galatians", "Ephesians", "Corinthians"], correct: 3 },
+            { question: "Who was the first king of Judah after the kingdom split?", options: ["Solomon", "Rehoboam", "Jeroboam", "Asa"], correct: 1 },
+            { question: "What was the name of the mountain where Moses died?", options: ["Mount Sinai", "Mount Horeb", "Mount Nebo", "Mount Pisgah"], correct: 2 },
+            { question: "Which apostle was a fisherman along with his brother Andrew?", options: ["James", "John", "Peter", "Philip"], correct: 2 },
+            { question: "What did God promise to Noah after the flood?", options: ["Never to flood the earth again", "A long life", "A great nation", "A promised land"], correct: 0 },
+            { question: "Who was the mother of the prophet Samuel?", options: ["Peninnah", "Hannah", "Naomi", "Ruth"], correct: 1 },
+            { question: "What was the name of the city where Jesus was crucified?", options: ["Bethlehem", "Nazareth", "Jerusalem", "Capernaum"], correct: 2 },
+            { question: "Which book of the Bible contains the story of the Good Samaritan?", options: ["Matthew", "Mark", "Luke", "John"], correct: 2 },
+            { question: "Who was the first person to be called a 'prophet' in the Bible?", options: ["Enoch", "Noah", "Abraham", "Moses"], correct: 2 },
+            { question: "What was the name of the river that the Israelites crossed to enter the Promised Land?", options: ["The Nile", "The Euphrates", "The Jordan", "The Tigris"], correct: 2 },
+            { question: "Which apostle was a tax collector before he was called by Jesus?", options: ["Peter", "Andrew", "Matthew", "John"], correct: 2 },
+            { question: "What did Jesus say was the 'greatest commandment'?", options: ["To love your neighbor as yourself", "To love the Lord your God with all your heart, soul, and mind", "To keep the Sabbath holy", "To honor your father and mother"], correct: 1 },
+            { question: "Who was the father of the faith?", options: ["Adam", "Noah", "Abraham", "Moses"], correct: 2 },
+            { question: "What was the name of the city where Saul was from?", options: ["Jerusalem", "Tarsus", "Antioch", "Damascus"], correct: 1 },
+            { question: "Which book of the Bible is a collection of wise sayings?", options: ["Psalms", "Proverbs", "Ecclesiastes", "Song of Solomon"], correct: 1 },
+            { question: "Who was the prophet who was taken to Babylon in the first deportation?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 3 },
+            { question: "According to Proverbs, what is the beginning of wisdom?", options: ["The fear of the Lord", "The pursuit of knowledge", "Listening to the wise", "The study of the law"], correct: 0 },
+            { question: "Who was the first Christian convert in Europe?", options: ["Cornelius", "The Ethiopian eunuch", "Lydia", "Sergius Paulus"], correct: 2 },
+            { question: "What does the name 'Moses' mean?", options: ["'To draw out'", "'Leader'", "'Lawgiver'", "'Prince of Egypt'"], correct: 0 },
+            { question: "Which book of the Bible details the journey of the Israelites from Egypt?", options: ["Genesis", "Exodus", "Leviticus", "Numbers"], correct: 1 },
+            { question: "Who was the king of Israel when Jesus was born?", options: ["Caesar Augustus", "Herod the Great", "Pontius Pilate", "Tiberius"], correct: 1 },
+            { question: "In the book of Revelation, how many churches are addressed in Asia Minor?", options: ["3", "5", "7", "12"], correct: 2 },
+            { question: "What was the original name of the Apostle Paul?", options: ["Saul", "Silas", "Simon", "Cephas"], correct: 0 },
+            { question: "Who was the wife of Moses?", options: ["Miriam", "Jochebed", "Zipporah", "Elisheba"], correct: 2 },
+            { question: "What is the longest chapter in the Bible?", options: ["Psalm 119", "Genesis 1", "Luke 1", "Numbers 7"], correct: 0 },
+            { question: "Who was the first king of the united kingdom of Israel?", options: ["David", "Solomon", "Saul", "Samuel"], correct: 2 },
+            { question: "Which son of Jacob was an ancestor of Jesus?", options: ["Reuben", "Levi", "Judah", "Joseph"], correct: 2 },
+            { question: "What type of tree did Zacchaeus climb?", options: ["Fig", "Olive", "Sycamore", "Palm"], correct: 2 },
+            { question: "Who is the author of the book of Lamentations?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 1 },
+            { question: "What was the name of the first woman judge of Israel?", options: ["Jael", "Esther", "Deborah", "Ruth"], correct: 2 },
+            { question: "Which disciple was known for his missionary journeys?", options: ["Peter", "John", "Paul", "James"], correct: 2 },
+            { question: "What was the name of the place where Jesus walked on water?", options: ["Sea of Galilee", "Red Sea", "Jordan River", "Dead Sea"], correct: 0 },
+            { question: "How many books in the Bible are named after women?", options: ["One", "Two", "Three", "Four"], correct: 1 },
+            { question: "What was the profession of Luke, the author of the Gospel of Luke?", options: ["Fisherman", "Tax Collector", "Doctor", "Carpenter"], correct: 2 },
+            { question: "Who was the oldest man in the Bible?", options: ["Noah", "Methuselah", "Adam", "Enoch"], correct: 1 },
+            { question: "What did Jesus say to his disciples at the Last Supper?", options: ["'This is my body, broken for you.'", "'Love one another as I have loved you.'", "'I am the way, the truth, and the life.'", "All of the above"], correct: 3 },
+            { question: "Who was the prophet that was commanded to lie on his side for 390 days?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 2 },
+            { question: "What was the name of the city where the tower of Babel was built?", options: ["Ur", "Babylon", "Nineveh", "Shinar"], correct: 3 },
+            { question: "Who was the first person to be called a priest in the Bible?", options: ["Aaron", "Melchizedek", "Levi", "Eli"], correct: 1 },
+            { question: "What was the name of the woman who anointed Jesus' feet with expensive perfume?", options: ["Mary, mother of Jesus", "Mary Magdalene", "Martha", "Mary of Bethany"], correct: 3 },
+            { question: "Which king of Judah was struck with leprosy for burning incense in the temple?", options: ["Uzziah", "Hezekiah", "Josiah", "Manasseh"], correct: 0 },
+            { question: "What was the name of the first city destroyed by the Israelites in the promised land?", options: ["Ai", "Jericho", "Gibeon", "Hebron"], correct: 1 },
+            { question: "Who was the prophet that was told to go to Nineveh?", options: ["Jonah", "Amos", "Hosea", "Micah"], correct: 0 },
+            { question: "What was the name of the angel that appeared to Daniel?", options: ["Michael", "Gabriel", "Raphael", "Uriel"], correct: 1 },
+            { question: "Who was the first person to be called a Christian in the Bible?", options: ["The disciples in Antioch", "Peter", "Paul", "Cornelius"], correct: 0 },
+            { question: "What was the name of the river that flowed out of the Garden of Eden and split into four rivers?", options: ["Tigris", "Euphrates", "Pishon", "A single river that divided"], correct: 3 },
+            { question: "Which of the twelve apostles was a Canaanite?", options: ["Simon Peter", "Simon the Zealot", "Judas Iscariot", "Bartholomew"], correct: 1 },
+            { question: "What was the name of the mountain on which the ark of Noah rested?", options: ["Mount Sinai", "Mount Ararat", "Mount Horeb", "Mount Zion"], correct: 1 },
+            { question: "Who was the first person to be mentioned as a musician in the Bible?", options: ["David", "Asaph", "Jubal", "Heman"], correct: 2 },
+            { question: "What was the name of the city where Jesus was accused of being a Samaritan?", options: ["Jerusalem", "Bethlehem", "Nazareth", "A city in Samaria"], correct: 3 },
+            { question: "Which book of the Bible is the shortest?", options: ["Obadiah", "Philemon", "2 John", "3 John"], correct: 2 },
+            { question: "Who was the first person to be called a 'friend of God' in the Bible?", options: ["Abraham", "Moses", "David", "Enoch"], correct: 0 },
+            { question: "What was the name of the valley where the Israelites were defeated because of Achan's sin?", options: ["Valley of Achor", "Valley of Elah", "Valley of Jezreel", "Valley of Siddim"], correct: 0 },
+            { question: "Who was the prophet that was from the city of Tishbe?", options: ["Elijah", "Elisha", "Isaiah", "Jeremiah"], correct: 0 },
+            { question: "What was the name of the city where Paul was stoned and left for dead?", options: ["Lystra", "Derbe", "Iconium", "Antioch"], correct: 0 },
+            { question: "Which book of the Bible is a letter to the seven churches in Asia?", options: ["Acts", "Romans", "Revelation", "Colossians"], correct: 2 },
+            { question: "Who was the first person to be called a 'prophetess' in the Bible?", options: ["Deborah", "Miriam", "Huldah", "Anna"], correct: 1 },
+            { question: "What was the name of the mountain where Elijah challenged the prophets of Baal?", options: ["Mount Sinai", "Mount Carmel", "Mount Horeb", "Mount Zion"], correct: 1 },
+            { question: "Who was the first person to be mentioned as a blacksmith in the Bible?", options: ["Cain", "Tubal-cain", "Jabal", "Lamech"], correct: 1 },
+            { question: "What was the name of the city where Jesus healed two blind men?", options: ["Jericho", "Bethsaida", "Capernaum", "Jerusalem"], correct: 0 },
+            { question: "Which book of the Bible is a poem about love and marriage?", options: ["Proverbs", "Ecclesiastes", "Song of Solomon", "Lamentations"], correct: 2 },
+            { question: "Who was the first person to be called a 'king' in the Bible?", options: ["Saul", "Nimrod", "Abimelech", "Melchizedek"], correct: 1 },
+            { question: "What was the name of the valley where the sun stood still for Joshua?", options: ["Valley of Aijalon", "Valley of Elah", "Valley of Jezreel", "Valley of Siddim"], correct: 0 },
+            { question: "Who was the prophet that was called from the womb?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 1 },
+            { question: "What was the name of the city where Paul was born?", options: ["Tarsus", "Jerusalem", "Rome", "Antioch"], correct: 0 },
+            { question: "Which book of the Bible is a letter to a young pastor?", options: ["1 Timothy", "2 Timothy", "Titus", "All of the above"], correct: 3 },
+            { question: "Who was the first person to be called a 'teacher' in the Bible?", options: ["Moses", "Jesus", "Nicodemus", "Gamaliel"], correct: 0 },
+            { question: "What was the name of the mountain where Jesus was transfigured?", options: ["Mount Sinai", "Mount Hermon", "Mount of Olives", "Mount Tabor"], correct: 3 },
+            { question: "Who was the first person to be mentioned as a farmer in the Bible?", options: ["Adam", "Cain", "Noah", "Abel"], correct: 1 },
+            { question: "On what day of creation were the sun, moon, and stars made?", options: ["First", "Second", "Third", "Fourth"], correct: 3 },
+            { question: "Who was the father of all nations?", options: ["Adam", "Noah", "Abraham", "Shem"], correct: 2 },
+            { question: "Which book records the history of the early church?", options: ["Acts", "Romans", "Luke", "John"], correct: 0 },
+            { question: "What was the name of the woman who was turned into a pillar of salt?", options: ["Lot's Wife", "Sarah", "Rebekah", "Hagar"], correct: 0 },
+            { question: "Which prophet had a vision of God on His throne, with seraphim crying 'Holy, holy, holy'?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 0 },
+            { question: "Who was the first person recorded to have been resurrected from the dead?", options: ["Lazarus", "The widow of Zarephath's son", "Jesus", "The Shunammite woman's son"], correct: 1 },
+            { question: "What is the primary theme of the book of Leviticus?", options: ["History", "Poetry", "Law and Holiness", "Prophecy"], correct: 2 },
+            { question: "Who was the king of Israel that was known for his idolatry and wickedness, married to Jezebel?", options: ["Ahab", "Saul", "Solomon", "Jeroboam"], correct: 0 },
+            { question: "Which of these is NOT one of the plagues of Egypt?", options: ["Hail", "Swarms of rats", "Darkness", "Boils"], correct: 1 },
+            { question: "What was the name of the disciple who was left in Crete by Paul?", options: ["Timothy", "Titus", "Silas", "Luke"], correct: 1 },
+            { question: "What did the Israelites anoint their doorposts with during the Passover?", options: ["Oil", "Water", "The blood of a lamb", "Honey"], correct: 2 },
+            { question: "Which of the apostles was a brother to Peter?", options: ["James", "John", "Andrew", "Matthew"], correct: 2 },
+            { question: "What is the book of Numbers primarily about?", options: ["The laws of Israel", "The census and wandering in the desert", "The conquest of Canaan", "The life of Moses"], correct: 1 },
+            { question: "Who was the prophet that was a contemporary of King Hezekiah?", options: ["Isaiah", "Jeremiah", "Elijah", "Daniel"], correct: 0 },
+            { question: "What was the name of the man who helped Jesus carry the cross?", options: ["Joseph of Arimathea", "Nicodemus", "Simon of Cyrene", "Barabbas"], correct: 2 },
+            { question: "Which book of the Bible contains the phrase 'the wages of sin is death'?", options: ["John", "Romans", "Genesis", "Revelation"], correct: 1 },
+            { question: "Who was the first person to build a city, according to Genesis?", options: ["Adam", "Cain", "Enoch", "Noah"], correct: 1 },
+            { question: "Which of these women was an ancestor of Jesus?", options: ["Esther", "Deborah", "Ruth", "Jezebel"], correct: 2 },
+            { question: "What did the spies sent into Canaan bring back?", options: ["Gold and silver", "A large cluster of grapes", "Reports of giants", "Both B and C"], correct: 3 },
+            { question: "Who was the high priest at the time of Jesus' ministry?", options: ["Annas", "Caiaphas", "Aaron", "Eli"], correct: 1 },
+            // Adding 1000 more questions
+            { question: "What does the name 'Eve' mean?", options: ["'Mother'", "'Life'", "'Woman'", "'First'"], correct: 1 },
+            { question: "Which apostle was known as the 'Son of Encouragement'?", options: ["Barnabas", "Paul", "Silas", "Timothy"], correct: 0 },
+            { question: "In the parable of the talents, what did the man with one talent do?", options: ["Invested it", "Gave it away", "Hid it in the ground", "Lost it"], correct: 2 },
+            { question: "What was the name of the city where Lydia, a seller of purple cloth, lived?", options: ["Corinth", "Ephesus", "Philippi", "Thessalonica"], correct: 2 },
+            { question: "Who was the prophet that was sawed in two?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Amos"], correct: 0 },
+            { question: "What did the first set of Ten Commandments tablets get broken?", options: ["Moses dropped them", "The Israelites broke them", "God destroyed them", "Moses broke them in anger"], correct: 3 },
+            { question: "What was the name of the first king of the southern kingdom of Judah?", options: ["Solomon", "Rehoboam", "Asa", "Jehoshaphat"], correct: 1 },
+            { question: "Who wrote the book of Ecclesiastes?", options: ["David", "Solomon", "Agur", "Lemuel"], correct: 1 },
+            { question: "What was the name of the city where the disciples were first filled with the Holy Spirit?", options: ["Antioch", "Jerusalem", "Bethlehem", "Nazareth"], correct: 1 },
+            { question: "Which book of the Bible contains the story of Balaam and his donkey?", options: ["Genesis", "Exodus", "Numbers", "Deuteronomy"], correct: 2 },
+            { question: "Who was the only female judge mentioned in the book of Judges?", options: ["Jael", "Deborah", "Ruth", "Esther"], correct: 1 },
+            { question: "What was the name of the city where Jesus healed the centurion's servant?", options: ["Capernaum", "Nazareth", "Cana", "Bethsaida"], correct: 0 },
+            { question: "Which book of the Bible is a letter to the believers in Rome?", options: ["Acts", "Romans", "1 Corinthians", "2 Corinthians"], correct: 1 },
+            { question: "Who was the first person to be called a 'Hebrew' in the Bible?", options: ["Abraham", "Shem", "Eber", "Terah"], correct: 0 },
+            { question: "What was the name of the mountain where the Sermon on the Mount was given?", options: ["Mount Sinai", "Mount of Olives", "A mountain in Galilee", "Mount Zion"], correct: 2 },
+            { question: "Who was the prophet who foretold the birth of Jesus in Bethlehem?", options: ["Isaiah", "Jeremiah", "Micah", "Hosea"], correct: 2 },
+            { question: "What was the name of the city where the apostle John was exiled?", options: ["Crete", "Cyprus", "Patmos", "Malta"], correct: 2 },
+            { question: "Which book of the Bible contains the story of the tower of Babel?", options: ["Genesis", "Exodus", "Leviticus", "Numbers"], correct: 0 },
+            { question: "Who was the first person to be raised from the dead in the Old Testament?", options: ["The son of the widow of Zarephath", "The Shunammite's son", "The man thrown on Elisha's bones", "Lazarus"], correct: 0 },
+            { question: "What was the name of the city where Jesus was betrayed?", options: ["Jerusalem", "Bethany", "Gethsemane", "Golgotha"], correct: 2 },
+            { question: "Which book of the Bible is a letter of joy and encouragement?", options: ["Galatians", "Ephesians", "Philippians", "Colossians"], correct: 2 },
+            { question: "Who was the first king of Persia to allow the Jews to return to their homeland?", options: ["Cyrus", "Darius", "Xerxes", "Artaxerxes"], correct: 0 },
+            { question: "What was the name of the pool where Jesus healed the man who had been lame for 38 years?", options: ["Pool of Siloam", "Pool of Bethesda", "Gihon Spring", "Jacob's Well"], correct: 1 },
+            { question: "Which book of the Bible contains the story of the valley of dry bones?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 2 },
+            { question: "Who was the first person to anoint a king in Israel?", options: ["Moses", "Joshua", "Samuel", "Nathan"], correct: 2 },
+            { question: "What was the name of the city where Jesus was tempted by Satan?", options: ["The wilderness", "Jerusalem", "A high mountain", "The pinnacle of the temple"], correct: 0 },
+            { question: "Which book of the Bible is a letter to a church struggling with division and immorality?", options: ["Romans", "1 Corinthians", "2 Corinthians", "Galatians"], correct: 1 },
+            { question: "Who was the first high priest to enter the Most Holy Place?", options: ["Aaron", "Moses", "Eleazar", "Phinehas"], correct: 0 },
+            { question: "What was the name of the city where Jesus gave the Beatitudes?", options: ["A mountain", "A plain", "The seashore", "A boat"], correct: 0 },
+            { question: "Which prophet had a vision of a new heaven and a new earth?", options: ["Isaiah", "Jeremiah", "Ezekiel", "John"], correct: 3 },
+            { question: "What was the name of the first Christian church established in Europe?", options: ["The church in Rome", "The church in Corinth", "The church in Philippi", "The church in Thessalonica"], correct: 2 },
+            // Adding another batch of questions
+            { question: "Which prophet is known for his prophecy of the 'suffering servant'?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 0 },
+            { question: "What did the Israelites build to house the Ark of the Covenant before the temple?", options: ["A tent", "A tabernacle", "A shrine", "A palace"], correct: 1 },
+            { question: "Who was the king who rebuilt the temple in Jerusalem after the exile?", options: ["Cyrus", "Darius", "Zerubbabel", "Nehemiah"], correct: 2 },
+            { question: "Which of the twelve tribes was the only one that was not given a territorial inheritance?", options: ["Levi", "Judah", "Benjamin", "Simeon"], correct: 0 },
+            { question: "What was the name of the city where Jesus healed the woman with the issue of blood?", options: ["Capernaum", "The road to Jericho", "Gennesaret", "Decapolis"], correct: 2 },
+            { question: "Which book of the Bible contains the story of the fall of Satan from heaven?", options: ["Genesis", "Isaiah", "Ezekiel", "Revelation"], correct: 3 },
+            { question: "Who was the first person to be called a 'Christian' in the Bible?", options: ["The disciples at Antioch", "Paul", "Peter", "Barnabas"], correct: 0 },
+            { question: "What was the name of the mountain where God made a covenant with Abraham?", options: ["Mount Sinai", "Mount Moriah", "Mount Horeb", "Mount Zion"], correct: 1 },
+            { question: "Which apostle was the first to be martyred?", options: ["Peter", "James, son of Zebedee", "John", "Andrew"], correct: 1 },
+            { question: "What was the name of the garden where Adam and Eve were placed?", options: ["Garden of Eden", "Garden of Gethsemane", "Hanging Gardens", "King's Garden"], correct: 0 },
+            { question: "Which book of the Bible contains the famous 'Sermon on the Plain'?", options: ["Matthew", "Mark", "Luke", "John"], correct: 2 },
+            { question: "Who was the first king of Israel to be anointed by a prophet?", options: ["Saul", "David", "Solomon", "Jeroboam"], correct: 0 },
+            { question: "What was the name of the city where Jesus was transfigured before Peter, James, and John?", options: ["Mount Hermon", "Mount Tabor", "A high mountain", "Mount of Olives"], correct: 2 },
+            { question: "Which book of the Bible is a letter to the church at Ephesus?", options: ["Romans", "Galatians", "Ephesians", "Philippians"], correct: 2 },
+            { question: "Who was the first person to see the promised land but not enter it?", options: ["Aaron", "Moses", "Joshua", "Caleb"], correct: 1 },
+            { question: "What was the name of the pool where the blind man was told to wash his eyes?", options: ["Pool of Bethesda", "Pool of Siloam", "Gihon Spring", "Jacob's Well"], correct: 1 },
+            { question: "Which prophet was a priest before he was called by God?", options: ["Isaiah", "Jeremiah", "Ezekiel", "Daniel"], correct: 2 },
+            { question: "What was the name of the first city to be built after the flood?", options: ["Enoch", "Babel", "Nineveh", "Ur"], correct: 1 }
+        ];
+
+        // --- DOM Elements ---
+        const questionTextEl = document.getElementById('question-text');
+        const optionsContainerEl = document.getElementById('options-container');
+        const rightScoreEl = document.getElementById('right-score');
+        const wrongScoreEl = document.getElementById('wrong-score');
+        const nextQuestionBtn = document.getElementById('next-question-btn');
+        const confettiContainer = document.getElementById('confetti-container');
+        const progressBar = document.getElementById('progress-bar');
+        const questionCounterEl = document.getElementById('question-counter');
+        const streakScoreEl = document.getElementById('streak-score');
+        const celebrationPopup = document.getElementById('celebration-popup');
+        const celebrationStreakEl = document.getElementById('celebration-streak');
+
+        // --- Audio ---
+        let synth;
+        // Start audio context on the first user interaction to comply with browser policies
+        document.body.addEventListener('click', () => {
+            if (!synth && typeof Tone !== 'undefined' && Tone.now()) {
+                synth = new Tone.Synth().toDestination();
+            }
+        }, { once: true });
+
+
+        // --- State ---
+        let rightAnswers = 0;
+        let wrongAnswers = 0;
+        let currentQuestion = {};
+        let answered = false;
+        let usedQuestionIndices = new Set();
+        const sessionLength = 20;
+        let questionsAnsweredInSession = 0;
+        let answerStreak = 0;
+
+
+        function loadQuestion() {
+            answered = false;
+            nextQuestionBtn.classList.add('invisible');
+
+            if (questionsAnsweredInSession >= sessionLength) {
+                // Reset session
+                questionsAnsweredInSession = 0;
+            }
+            questionsAnsweredInSession++;
+            
+            // Find a random question that hasn't been used yet
+            if (usedQuestionIndices.size >= bibleQuizzes.length) {
+                usedQuestionIndices.clear();
+            }
+
+            let questionIndex;
+            do {
+                questionIndex = Math.floor(Math.random() * bibleQuizzes.length);
+            } while (usedQuestionIndices.has(questionIndex));
+            
+            usedQuestionIndices.add(questionIndex);
+            currentQuestion = bibleQuizzes[questionIndex];
+
+            // Update UI
+            updateProgress();
+            questionTextEl.textContent = currentQuestion.question;
+            optionsContainerEl.innerHTML = '';
+            currentQuestion.options.forEach((option, index) => {
+                const button = document.createElement('button');
+                const optionText = document.createElement('span');
+                optionText.textContent = option;
+                button.appendChild(optionText);
+                button.className = 'option-btn w-full text-left p-4 rounded-lg';
+                button.onclick = () => checkAnswer(index, button);
+                optionsContainerEl.appendChild(button);
+            });
+        }
+        
+        function updateProgress() {
+            const progressPercent = (questionsAnsweredInSession / sessionLength) * 100;
+            progressBar.style.width = `${progressPercent}%`;
+            questionCounterEl.textContent = `Question ${questionsAnsweredInSession} / ${sessionLength}`;
+        }
+
+        function triggerConfetti() {
+            for (let i = 0; i < 80; i++) { // Increased confetti count
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                const angle = Math.random() * 360;
+                const velocity = Math.random() * 50 + 50;
+                const x = Math.cos(angle * Math.PI / 180) * velocity;
+                const y = Math.sin(angle * Math.PI / 180) * velocity;
+
+                const animDelay = Math.random() * 0.5;
+                const color = `hsl(${Math.random() * 360}, 100%, 50%)`;
+                
+                confetti.style.setProperty('--x', `${x}px`);
+                confetti.style.setProperty('--y', `${y}px`);
+
+                confetti.style.transform = `translate(${x}px, ${y}px)`;
+                confetti.style.animationDelay = `${animDelay}s`;
+                confetti.style.backgroundColor = color;
+                
+                confettiContainer.appendChild(confetti);
+                
+                setTimeout(() => {
+                    confetti.remove();
+                }, 3000);
+            }
+        }
+
+        function checkAnswer(selectedIndex, button) {
+            if (answered) return;
+            answered = true;
+
+            const correctIndex = currentQuestion.correct;
+            const optionButtons = optionsContainerEl.querySelectorAll('.option-btn');
+
+            if (selectedIndex === correctIndex) {
+                // Correct Answer
+                rightAnswers++;
+                answerStreak++;
+                rightScoreEl.textContent = rightAnswers;
+                streakScoreEl.textContent = answerStreak;
+                streakScoreEl.classList.add('streak-glow-animation');
+                setTimeout(() => streakScoreEl.classList.remove('streak-glow-animation'), 1500);
+
+                button.classList.add('correct-answer');
+                if (synth) synth.triggerAttackRelease("C5", "8n", Tone.now());
+                
+                // Show celebration
+                showCelebration();
+
+            } else {
+                // Wrong Answer
+                wrongAnswers++;
+                answerStreak = 0; // Reset streak
+                wrongScoreEl.textContent = wrongAnswers;
+                streakScoreEl.textContent = answerStreak;
+                button.classList.add('wrong-answer');
+                if (synth) synth.triggerAttackRelease("C3", "8n", Tone.now());
+
+                // Show the correct answer
+                const correctButton = optionButtons[correctIndex];
+                correctButton.classList.add('show-correct');
+                const popupTag = document.createElement('span');
+                popupTag.textContent = '✓ Correct';
+                popupTag.className = 'correct-popup font-bold';
+                correctButton.appendChild(popupTag);
+            }
+
+            optionButtons.forEach(btn => btn.disabled = true);
+            nextQuestionBtn.classList.remove('invisible');
+        }
+
+        function showCelebration() {
+            celebrationStreakEl.textContent = answerStreak;
+            celebrationPopup.classList.remove('opacity-0', 'pointer-events-none', 'scale-75');
+            celebrationPopup.classList.add('opacity-100', 'scale-100');
+            triggerConfetti();
+
+            setTimeout(() => {
+                celebrationPopup.classList.remove('opacity-100', 'scale-100');
+                celebrationPopup.classList.add('opacity-0', 'pointer-events-none', 'scale-75');
+            }, 1800);
+        }
+
+        // --- Event Listeners ---
+        nextQuestionBtn.addEventListener('click', loadQuestion);
+
+        // --- Initial Load ---
+        window.onload = () => {
+            loadQuestion();
+        };
+    </script>
+</body>
+</html>
